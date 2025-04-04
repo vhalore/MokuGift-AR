@@ -1,109 +1,97 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>MokuGift AR (Huawei Fix)</title>
+  <title>MokuGift Universal AR</title>
+  <!-- Load AR.js with all polyfills -->
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  <!-- Use WebARonARCore version for better Huawei support -->
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-cores.js"></script>
-  <script>
-  AFRAME.registerComponent('force-camera', {
-    init: function() {
-      navigator.mediaDevices.getUserMedia = 
-        navigator.mediaDevices.getUserMedia || 
-        navigator.webkitGetUserMedia;
-    }
-  });
-</script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
+  
+  <!-- Load model-viewer as fallback -->
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  
   <style>
+    /* Universal AR Container */
     #ar-container {
-      position: fixed;
       width: 100%;
-      height: 100%;
+      height: 100vh;
+      position: relative;
     }
-    #error-message {
+    
+    /* Fallback Message */
+    .fallback {
       display: none;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: white;
+      text-align: center;
       padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
     }
   </style>
 </head>
 <body>
-  <!-- AR Container -->
+  <!-- Dynamic AR Container -->
   <div id="ar-container">
-    <a-scene 
-      vr-mode-ui="enabled: false"
-      renderer="logarithmicDepthBuffer: true;"
-      embedded 
-      arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best;"
-    >
-      <!-- Hiro Marker with enhanced parameters -->
-      <a-marker 
-        type="pattern" 
-        preset="hiro"
-        url="assets/hiro.patt"
-        emitevents="true"
-        cursor="rayOrigin: mouse"
-        raycaster="objects: .clickable"
-        registerevents
-      >
-        <a-entity 
-          gltf-model="models/3d.glb"
-          scale="0.1 0.1 0.1"
-          class="clickable"
-          animation="property: rotation; to: 0 360 0; loop: true; dur: 5000"
-        ></a-entity>
-      </a-marker>
-      <a-entity camera></a-entity>
-    </a-scene>
+    <!-- This will be replaced by either AR or 3D viewer -->
   </div>
 
-  <!-- Error Message -->
-  <div id="error-message">
-    <h3>Marker Not Detected</h3>
-    <p>Try these steps:</p>
+  <!-- Fallback Instructions -->
+  <div class="fallback" id="fallback">
+    <h2>AR Experience Unavailable</h2>
+    <p>Try these options:</p>
     <ol>
-      <li>Print the <a href="assets/hiro.png" download>Hiro Marker</a> at 100% scale</li>
-      <li>Ensure good lighting (avoid glare)</li>
-      <li>Hold phone 30-50cm from marker</li>
-      <li>Move slowly if using Huawei P40/Mate series</li>
+      <li>Use <strong>Chrome (Android)</strong> or <strong>Safari (iPhone)</strong></li>
+      <li><a href="assets/marker.jpg" download>Download marker image</a></li>
+      <li>View <a href="#3d-fallback">3D version</a></li>
     </ol>
-    <button onclick="location.reload()">Retry</button>
   </div>
 
   <script>
-    // Huawei-specific adjustments
-    const scene = document.querySelector('a-scene');
-    let timeout;
+    // Detect device capabilities
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isHuawei = /huawei/i.test(navigator.userAgent);
+    const supportsWebXR = 'xr' in navigator;
     
-    // Show error if no detection after 10 seconds
-    scene.addEventListener('loaded', () => {
-      timeout = setTimeout(showError, 10000);
-    });
-    
-    // Cancel timeout if marker found
-    scene.addEventListener('markerFound', () => {
-      clearTimeout(timeout);
-      document.getElementById('error-message').style.display = 'none';
-    });
-    
-    function showError() {
-      document.getElementById('error-message').style.display = 'block';
+    // Main AR loader
+    function initAR() {
+      const container = document.getElementById('ar-container');
+      
+      // 1. Try WebXR (best for Android/iOS)
+      if (supportsWebXR || isIOS) {
+        container.innerHTML = `
+          <a-scene embedded arjs="trackingMethod: best; sourceType: webcam;">
+            <a-nft type="nft" url="assets/marker" smooth="true">
+              <a-entity gltf-model="models/product.glb" scale="0.1 0.1 0.1"></a-entity>
+            </a-nft>
+            <a-entity camera></a-entity>
+          </a-scene>
+        `;
+      } 
+      // 2. Try Quick Look (iOS fallback)
+      else if (isIOS) {
+        container.innerHTML = `
+          <model-viewer
+            src="models/3d.glb"
+            ios-src="models/product.usdz"
+            ar
+            ar-modes="quick-look"
+            camera-controls
+            style="width:100%;height:100%">
+          </model-viewer>
+        `;
+      }
+      // 3. Show 3D fallback
+      else {
+        container.innerHTML = `
+          <model-viewer
+            src="models/product.glb"
+            camera-controls
+            auto-rotate
+            style="width:100%;height:100%">
+          </model-viewer>
+        `;
+        document.getElementById('fallback').style.display = 'block';
+      }
     }
-    
-    // Huawei camera warmup workaround
-    if (/huawei/i.test(navigator.userAgent)) {
-      setTimeout(() => {
-        const camera = document.querySelector('[camera]');
-        camera.setAttribute('camera', 'active', false);
-        camera.setAttribute('camera', 'active', true);
-      }, 1000);
-    }
+
+    // Initialize when page loads
+    window.addEventListener('DOMContentLoaded', initAR);
   </script>
 </body>
 </html>
