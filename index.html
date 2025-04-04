@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MokuGift AR Test</title>
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <style>
+        model-viewer {
+            width: 100%;
+            height: 500px;
+            margin: 0 auto;
+        }
+        #ar-button {
+            background: #6B240C;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-family: sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <h1>MokuGift AR Demo</h1>
+   <model-viewer
+  src="my character topology.glb"
+  ar
+  ar-modes="webxr scene-viewer quick-look"
+  camera-controls
+  environment-image="neutral"
+  ios-src="assets/models/your-model.usdz" <!-- Optional for iOS -->
+  alt="AR Model">
+  <button slot="ar-button" style="background: #6B240C; color: white; border: none; padding: 10px 20px;">
+    👀 View in AR
+  </button>
+</model-viewer>
+    <p><strong>Note:</strong> Open this page on your phone to test AR!</p>
+</body>
+</html>
