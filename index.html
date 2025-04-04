@@ -1,79 +1,175 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>MokuGift AR</title>
-  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-  <style>
-    body { margin: 0; overflow: hidden; }
-    #permission-help {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.9);
-      color: white;
-      display: none;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-      font-family: Arial;
+    <title>MokuGift WebXR AR</title>
+    <style>
+        body { 
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial;
+        }
+        #ar-button {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            z-index: 999;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+    </style>
+  // Add to <head>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.min.js"></script>
+
+// Replace renderFrame() with:
+const renderFrame = (session, frame, refSpace) => {
+    const pose = frame.getViewerPose(refSpace);
+    if (pose && !hitTestSource) {
+        session.requestHitTestSource({ space: refSpace })
+            .then(source => { hitTestSource = source; });
     }
-    #permission-help button {
-      padding: 10px 20px;
-      margin-top: 20px;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 5px;
+    
+    if (hitTestSource && pose) {
+        const hitTestResults = frame.getHitTestResults(hitTestSource);
+        if (hitTestResults.length > 0) {
+            const hit = hitTestResults[0];
+            const hitPose = hit.getPose(refSpace);
+            if (model.mesh) {
+                model.mesh.position.set(
+                    hitPose.transform.position.x,
+                    hitPose.transform.position.y,
+                    hitPose.transform.position.z
+                );
+            }
+        }
     }
-  </style>
+    
+    // Render scene
+    renderer.render(scene, camera);
+    
+    session.requestAnimationFrame((time, frame) => {
+        renderFrame(session, frame, refSpace);
+    });
+};
 </head>
 <body>
-  <!-- Camera Permission Help (hidden by default) -->
-  <div id="permission-help">
-    <h2>Camera Access Required</h2>
-    <p>To use AR, please allow camera permissions:</p>
-    <ol>
-      <li>Click the camera icon in your browser's address bar</li>
-      <li>Select "Always allow"</li>
-      <li>Refresh this page</li>
-    </ol>
-    <button onclick="window.location.reload()">I've Enabled Permissions</button>
-  </div>
-
-  <!-- AR Scene -->
-  <a-scene 
-    vr-mode-ui="enabled: false"
-    embedded 
-    arjs="sourceType: webcam; debugUIEnabled: true;"
-  >
-    <a-marker preset="hiro">
-      <a-box position="0 0.5 0" material="color: red"></a-box>
-    </a-marker>
-    <a-entity camera></a-entity>
-  </a-scene>
-
-  <script>
-    // Camera permission handling
-    const helpDiv = document.getElementById('permission-help');
+    <div id="info">Point your camera at a flat surface</div>
+    <button id="ar-button">Start AR</button>
     
-    // Check if permissions were denied
-    setTimeout(() => {
-      const scene = document.querySelector('a-scene');
-      if (!scene.hasAttribute('arjs-video-loaded')) {
-        helpDiv.style.display = 'flex';
-      }
-    }, 3000);
-
-    // Listen for permission changes
-    navigator.permissions.query({ name: 'camera' }).then(permissionStatus => {
-      permissionStatus.onchange = () => {
-        if (permissionStatus.state === 'granted') {
-          window.location.reload();
+    <script>
+        // DOM elements
+        const arButton = document.getElementById('ar-button');
+        const infoDiv = document.getElementById('info');
+        
+        // 3D model (simplified cube example - replace with your GLB loader)
+        let model = {
+            position: { x: 0, y: 0, z: 0 },
+            rotation: { x: 0, y: 0, z: 0 },
+            scale: { x: 0.3, y: 0.3, z: 0.3 }
+        };
+        
+        // Check WebXR support
+        async function checkXRSupport() {
+            if (!navigator.xr) {
+                arButton.textContent = "AR Not Supported";
+                arButton.disabled = true;
+                return false;
+            }
+            
+            const supported = await navigator.xr.isSessionSupported('immersive-ar');
+            if (!supported) {
+                arButton.textContent = "AR Not Available";
+                arButton.disabled = true;
+            }
+            return supported;
         }
-      };
-    });
-  </script>
+        
+        // Main AR function
+        async function startAR() {
+            const gl = await initGL();
+            if (!gl) return;
+            
+            const session = await navigator.xr.requestSession('immersive-ar', {
+                requiredFeatures: ['hit-test'],
+                optionalFeatures: ['dom-overlay'],
+                domOverlay: { root: document.body }
+            });
+            
+            session.addEventListener('end', () => {
+                window.location.reload();
+            });
+            
+            infoDiv.style.display = 'block';
+            arButton.style.display = 'none';
+            
+            const refSpace = await session.requestReferenceSpace('local');
+            let hitTestSource = null;
+            
+            // Render loop
+            const renderFrame = (session, frame, refSpace) => {
+                const pose = frame.getViewerPose(refSpace);
+                if (pose && !hitTestSource) {
+                    session.requestHitTestSource({ space: refSpace })
+                        .then(source => { hitTestSource = source; });
+                }
+                
+                if (hitTestSource && pose) {
+                    const hitTestResults = frame.getHitTestResults(hitTestSource);
+                    if (hitTestResults.length > 0) {
+                        const hit = hitTestResults[0];
+                        model.position = hit.getPose(refSpace).transform.position;
+                    }
+                }
+                
+                // Here you would render your 3D model
+                // For demo we just show position info
+                infoDiv.textContent = `Model Position: ${JSON.stringify(model.position)}`;
+                
+                session.requestAnimationFrame((time, frame) => {
+                    renderFrame(session, frame, refSpace);
+                });
+            };
+            
+            session.requestAnimationFrame((time, frame) => {
+                renderFrame(session, frame, refSpace);
+            });
+        }
+        
+        // Initialize WebGL context
+        async function initGL() {
+            const canvas = document.createElement('canvas');
+            document.body.appendChild(canvas);
+            const gl = canvas.getContext('webgl', { xrCompatible: true });
+            
+            if (!gl) {
+                arButton.textContent = "WebGL Not Supported";
+                arButton.disabled = true;
+                return null;
+            }
+            
+            return gl;
+        }
+        
+        // Initialize
+        checkXRSupport().then(supported => {
+            if (supported) {
+                arButton.addEventListener('click', startAR);
+            }
+        });
+    </script>
 </body>
 </html>
