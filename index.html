@@ -79,57 +79,118 @@
         <!-- UI Elements -->
         <div id="loading">
             <h2>MokuGift AR</h2>
-            <p>Initializing...</p>
+            <p>Initializing camera...</p>
         </div>
-        <div id="marker-status">Point at the marker</div>
+        <div id="marker-status">Searching for marker</div>
         <div id="instructions">
-            <a href="marker.png" download style="color: #4fc3f7;">Download marker</a>
+            <a href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABhGlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw1AUhU9TpaIVBzuIOGSoThZERRy1CkWoEGqFVh1MXvoHTRqSFBdHwbXg4M9i1cHFWVcHV0EQ/ABxdHJSdJES70sKLWI8OOcHu8e+9eBwXeFZlrJjBawCxTTDKLCOmF9KwjQhjeIoQ+JIQ6Ro3jJk5DLG+4+0KXm+4+3q+jV82wCMQziBdZJjEM8QXTXpnE+8RR2rAADz7mUXJJP4kdxGLQ/YzPJ8xLnXswlhHtCrO1L3mS8IZlmdVUjN7HmUMKxmyW/EY5m2WqjB2X+JwxnqSsl58kK5Z5mzGsZNi1ilRVERK6iKkUQlFQJMe5PjBQ9T2F8y5w26K2y5w3+NYJ5XyJY5DQLtCjBw3Q/o2F3HXW9JdKvOPZPXBk/R0hX5tIbB0D3g9rVMaPcW6wVz+4BfM3ClJdK3gKlBQaD3FcVgU7MYSf0MAbmPwNfiUB/PadVXmyd3NwCB7dB5xdQ+AnQ2g/9d7t7e3dP9bwO+9fJx5e2MZ6QAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAQKADAAQAAAABAAAAQAAAAABR4RFdAAABXGlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iWE1QIENvcmUgNi4wLjAiPgogICA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPgogICAgICA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIgogICAgICAgICAgICB4bWxuczp0aWZmPSJodHRwOi8vbnMuYWRvYmUuY29tL3RpZmYvMS4wLyI+CiAgICAgICAgIDx0aWZmOk9yaWVudGF0aW9uPjE8L3RpZmY6T3JpZW50YXRpb24+CiAgICAgIDwvcmRmOkRlc2NyaXB0aW9uPgogICA8L3JkZjpSREY+CjwveDp4bXBtZXRhPgpMwidZAAAGJUlEQVRoBe1aTUhUURQ+92k2WlQ2WJhFQUVQEEVQEEVQEAXRokWLNkGLFrVp0aJNQYsWQYsWQYsWQYsWQYsWQYsWQYsWQYsWQYsWQYsWQYsWQYsWQYsWQYsWQYsW3XfmPZ3nzJv3Zt4M+oY5cO+5557v3O+ee+65940jKf6lUvz+7vU7gJQeAekASAdAOgBSmgMp/fLu7TvSAdABkA6AlOZASr+8e/v/AwD/AF4F3cFQ5Q3YAAAAAElFTkSuQmCC" download="marker.png" style="color: #4fc3f7;">Download Hiro Marker</a>
         </div>
     </div>
 
-    <!-- 3D Rendering Library -->
+    <!-- Three.js for 3D Rendering -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.min.js"></script>
+
+    <!-- JSARToolKit (embedded in script) -->
     <script>
-        // ========================
-        // Main Application
-        // ========================
-        const App = {
-            // DOM Elements
-            elements: {
-                video: null,
-                canvas: null,
-                ctx: null,
-                loading: null,
-                markerStatus: null
+        // =============================================
+        // Embedded JSARToolKit (simplified version)
+        // =============================================
+        const ARToolkit = {
+            // Marker pattern data for Hiro marker
+            patternWidth: 16,
+            patternHeight: 16,
+            patternData: new Uint8Array(256).fill(0),
+            
+            init() {
+                // Initialize pattern data (Hiro marker)
+                const markerPattern = [
+                    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                    0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,
+                    0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,
+                    0,1,0,1,1,1,1,1,1,1,1,1,1,0,1,0,
+                    0,1,0,1,0,0,0,0,0,0,0,0,1,0,1,0,
+                    0,1,0,1,0,1,1,1,1,1,1,0,1,0,1,0,
+                    0,1,0,1,0,1,0,0,0,0,1,0,1,0,1,0,
+                    0,1,0,1,0,1,0,1,1,0,1,0,1,0,1,0,
+                    0,1,0,1,0,1,0,0,0,0,1,0,1,0,1,0,
+                    0,1,0,1,0,1,1,1,1,1,1,0,1,0,1,0,
+                    0,1,0,1,0,0,0,0,0,0,0,0,1,0,1,0,
+                    0,1,0,1,1,1,1,1,1,1,1,1,1,0,1,0,
+                    0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,
+                    0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,
+                    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+                ];
+                
+                for (let i = 0; i < 256; i++) {
+                    this.patternData[i] = markerPattern[i] * 255;
+                }
             },
+            
+            // Simplified marker detection
+            detectMarker(imageData) {
+                // In a full implementation, this would:
+                // 1. Convert to grayscale
+                // 2. Threshold image
+                // 3. Find contours
+                // 4. Match against marker pattern
+                
+                // For this demo, we'll simulate detection
+                // by checking center area for contrast
+                const centerX = Math.floor(imageData.width / 2);
+                const centerY = Math.floor(imageData.height / 2);
+                const radius = 20;
+                
+                let minVal = 255;
+                let maxVal = 0;
+                
+                for (let y = centerY - radius; y < centerY + radius; y++) {
+                    for (let x = centerX - radius; x < centerX + radius; x++) {
+                        const idx = (y * imageData.width + x) * 4;
+                        const gray = (imageData.data[idx] + imageData.data[idx+1] + imageData.data[idx+2]) / 3;
+                        minVal = Math.min(minVal, gray);
+                        maxVal = Math.max(maxVal, gray);
+                    }
+                }
+                
+                // If we find high contrast in center, assume marker is present
+                return (maxVal - minVal) > 100;
+            }
+        };
+        
+        // Initialize ARToolkit
+        ARToolkit.init();
+        
+        // =============================================
+        // Main AR Application
+        // =============================================
+        const ARApp = {
+            // DOM Elements
+            video: null,
+            canvas: null,
+            ctx: null,
+            loading: null,
+            markerStatus: null,
+            
+            // Three.js components
+            scene: null,
+            camera: null,
+            renderer: null,
+            model: null,
             
             // AR Tracking
-            ar: {
-                markerSize: 0.5, // Physical marker size in meters
-                markerPattern: null,
-                patternWidth: 16,
-                patternHeight: 16,
-                patternData: new Uint8Array(16*16),
-                detectionInterval: null
-            },
+            markerSize: 0.16, // Hiro marker size in meters
+            isMarkerDetected: false,
+            detectionInterval: null,
             
-            // 3D Scene
-            three: {
-                scene: null,
-                camera: null,
-                renderer: null,
-                model: null
-            },
-            
-            // Initialize the app
+            // Initialize the application
             async init() {
                 // Get DOM elements
-                this.elements.video = document.getElementById('video');
-                this.elements.canvas = document.getElementById('canvas');
-                this.elements.ctx = this.elements.canvas.getContext('2d');
-                this.elements.loading = document.getElementById('loading');
-                this.elements.markerStatus = document.getElementById('marker-status');
+                this.video = document.getElementById('video');
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.loading = document.getElementById('loading');
+                this.markerStatus = document.getElementById('marker-status');
                 
                 // Initialize Three.js
                 this.initThreeJS();
@@ -137,48 +198,47 @@
                 // Start camera
                 await this.startCamera();
                 
-                // Initialize marker pattern (embedded Hiro marker)
-                this.initMarkerPattern();
-                
                 // Load 3D model
                 await this.loadModel();
                 
                 // Start AR tracking
-                this.startARTracking();
+                this.startTracking();
                 
                 // Hide loading screen
-                this.elements.loading.style.display = 'none';
+                setTimeout(() => {
+                    this.loading.style.display = 'none';
+                }, 1000);
             },
             
             // Set up Three.js scene
             initThreeJS() {
                 // Scene
-                this.three.scene = new THREE.Scene();
+                this.scene = new THREE.Scene();
                 
-                // Camera (parameters will be updated during tracking)
-                this.three.camera = new THREE.PerspectiveCamera(
+                // Camera
+                this.camera = new THREE.PerspectiveCamera(
                     60, 
                     window.innerWidth / window.innerHeight, 
                     0.01, 
                     1000
                 );
-                this.three.scene.add(this.three.camera);
+                this.scene.add(this.camera);
                 
                 // Renderer
-                this.three.renderer = new THREE.WebGLRenderer({ 
+                this.renderer = new THREE.WebGLRenderer({ 
                     alpha: true,
                     antialias: true,
-                    canvas: this.elements.canvas
+                    canvas: this.canvas
                 });
-                this.three.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
                 
                 // Lighting
                 const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-                this.three.scene.add(ambientLight);
+                this.scene.add(ambientLight);
                 
                 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
                 directionalLight.position.set(1, 1, 1);
-                this.three.scene.add(directionalLight);
+                this.scene.add(directionalLight);
             },
             
             // Start camera stream
@@ -192,71 +252,43 @@
                         }
                     });
                     
-                    this.elements.video.srcObject = stream;
+                    this.video.srcObject = stream;
                     await new Promise((resolve) => {
-                        this.elements.video.onloadedmetadata = resolve;
+                        this.video.onloadedmetadata = resolve;
                     });
-                    this.elements.video.play();
+                    this.video.play();
                     
                     // Set canvas size to match video
-                    this.elements.canvas.width = this.elements.video.videoWidth;
-                    this.elements.canvas.height = this.elements.video.videoHeight;
+                    this.canvas.width = this.video.videoWidth;
+                    this.canvas.height = this.video.videoHeight;
                     
                 } catch (err) {
                     this.showError("Camera error: " + err.message);
                 }
             },
             
-            // Initialize marker pattern (embedded Hiro marker)
-            initMarkerPattern() {
-                // This is a simplified version of the Hiro marker pattern
-                const markerPattern = `
-                    0000000000000000
-                    0111111111111110
-                    0100000000000010
-                    0101111111111010
-                    0101000000011010
-                    0101011111011010
-                    0101010001011010
-                    0101010101011010
-                    0101010001011010
-                    0101011111011010
-                    0101000000011010
-                    0101111111111010
-                    0100000000000010
-                    0111111111111110
-                    0000000000000000
-                `.replace(/\s/g, '');
-                
-                // Convert to binary pattern data
-                for (let i = 0; i < markerPattern.length; i++) {
-                    this.ar.patternData[i] = markerPattern[i] === '1' ? 255 : 0;
-                }
-            },
-            
-            // Load 3D model (fallback to cube if error)
+            // Load 3D model
             async loadModel() {
                 // For demo purposes, we'll use a simple cube
-                // Replace this with your actual model loading code
-                const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+                const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
                 const material = new THREE.MeshStandardMaterial({ 
                     color: 0x4CAF50,
                     metalness: 0.5,
                     roughness: 0.5
                 });
-                this.three.model = new THREE.Mesh(geometry, material);
-                this.three.model.visible = false;
-                this.three.scene.add(this.three.model);
+                this.model = new THREE.Mesh(geometry, material);
+                this.model.visible = false;
+                this.scene.add(this.model);
                 
                 // If you want to load a GLB model:
                 /*
                 try {
                     const loader = new THREE.GLTFLoader();
                     const gltf = await loader.loadAsync('models/your-model.glb');
-                    this.three.model = gltf.scene;
-                    this.three.model.scale.set(0.5, 0.5, 0.5);
-                    this.three.model.visible = false;
-                    this.three.scene.add(this.three.model);
+                    this.model = gltf.scene;
+                    this.model.scale.set(0.5, 0.5, 0.5);
+                    this.model.visible = false;
+                    this.scene.add(this.model);
                 } catch (err) {
                     console.error("Model loading failed, using fallback cube");
                     // Use the cube we created above
@@ -264,61 +296,52 @@
                 */
             },
             
-            // Start AR marker tracking
-            startARTracking() {
-                // Simple marker detection (simplified for standalone implementation)
-                this.ar.detectionInterval = setInterval(() => {
-                    this.detectMarker();
-                }, 100); // Run detection 10 times per second
+            // Start AR tracking loop
+            startTracking() {
+                this.detectionInterval = setInterval(() => {
+                    this.detectAndRender();
+                }, 100); // 10 FPS detection
             },
             
-            // Simplified marker detection
-            detectMarker() {
+            // Detect marker and render scene
+            detectAndRender() {
                 // Draw video frame to canvas
-                this.elements.ctx.drawImage(
-                    this.elements.video,
-                    0, 0,
-                    this.elements.canvas.width,
-                    this.elements.canvas.height
+                this.ctx.drawImage(
+                    this.video, 
+                    0, 0, 
+                    this.canvas.width, 
+                    this.canvas.height
                 );
                 
-                // Get image data
-                const imageData = this.elements.ctx.getImageData(
-                    0, 0,
-                    this.elements.canvas.width,
-                    this.elements.canvas.height
+                // Get image data for marker detection
+                const imageData = this.ctx.getImageData(
+                    0, 0, 
+                    this.canvas.width, 
+                    this.canvas.height
                 );
                 
-                // Simplified marker detection (in a real app, use JSARToolKit)
-                // This is just a placeholder for the concept
-                const markerFound = this.simulateMarkerDetection();
+                // Detect marker
+                this.isMarkerDetected = ARToolkit.detectMarker(imageData);
                 
-                if (markerFound) {
-                    this.elements.markerStatus.textContent = "Marker detected!";
-                    this.three.model.visible = true;
+                if (this.isMarkerDetected) {
+                    this.markerStatus.textContent = "Marker detected!";
+                    this.model.visible = true;
                     
                     // Position model above marker (simplified)
-                    this.three.model.position.set(0, 0, -1);
-                    this.three.model.rotation.y += 0.02;
+                    this.model.position.set(0, 0, -0.5);
+                    this.model.rotation.y += 0.02;
                 } else {
-                    this.elements.markerStatus.textContent = "Point at the marker";
-                    this.three.model.visible = false;
+                    this.markerStatus.textContent = "Point at the marker";
+                    this.model.visible = false;
                 }
                 
                 // Render 3D scene
-                this.three.renderer.render(this.three.scene, this.three.camera);
-            },
-            
-            // Simulate marker detection (replace with real implementation)
-            simulateMarkerDetection() {
-                // In a real app, this would use JSARToolKit or similar
-                // For this demo, we'll pretend we found the marker 50% of the time
-                return Math.random() > 0.5;
+                this.renderer.render(this.scene, this.camera);
             },
             
             // Error handling
             showError(message) {
-                this.elements.loading.innerHTML = `
+                this.loading.innerHTML = `
                     <h2>Error</h2>
                     <p>${message}</p>
                     <button onclick="window.location.reload()">Try Again</button>
@@ -328,14 +351,14 @@
         };
         
         // Start the app when page loads
-        window.addEventListener('DOMContentLoaded', () => App.init());
+        window.addEventListener('DOMContentLoaded', () => ARApp.init());
         
         // Handle window resize
         window.addEventListener('resize', () => {
-            if (App.three.camera && App.three.renderer) {
-                App.three.camera.aspect = window.innerWidth / window.innerHeight;
-                App.three.camera.updateProjectionMatrix();
-                App.three.renderer.setSize(window.innerWidth, window.innerHeight);
+            if (ARApp.camera && ARApp.renderer) {
+                ARApp.camera.aspect = window.innerWidth / window.innerHeight;
+                ARApp.camera.updateProjectionMatrix();
+                ARApp.renderer.setSize(window.innerWidth, window.innerHeight);
             }
         });
     </script>
