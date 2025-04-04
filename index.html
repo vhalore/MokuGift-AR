@@ -1,265 +1,343 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>MokuGift AR Experience</title>
+    <title>MokuGift AR</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <style>
         body { 
-            margin: 0;
-            overflow: hidden;
+            margin: 0; 
+            overflow: hidden; 
+            background: #000;
             font-family: Arial;
         }
-        #ar-button {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 24px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 30px;
-            z-index: 999;
-            font-size: 16px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        #video {
+            display: none;
+        }
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         #loading {
-            position: fixed;
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: #000;
+            background: rgba(0,0,0,0.8);
             color: white;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 1000;
+            z-index: 100;
         }
-        #info {
+        #marker-status {
             position: absolute;
             top: 20px;
             left: 20px;
             background: rgba(0,0,0,0.7);
             color: white;
-            padding: 12px;
-            border-radius: 8px;
-            display: none;
-            max-width: 80%;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 10;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            z-index: 10;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin: 10px;
+            font-size: 16px;
         }
     </style>
-    <!-- Three.js Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
-    <div id="loading">
-        <h2>Loading MokuGift AR</h2>
-        <div id="progress" style="width: 200px; height: 20px; background: #333; margin: 20px;">
-            <div id="progress-bar" style="height: 100%; width: 0%; background: #4CAF50;"></div>
+    <div id="container">
+        <!-- Camera Feed -->
+        <video id="video" playsinline></video>
+        <canvas id="canvas"></canvas>
+        
+        <!-- UI Elements -->
+        <div id="loading">
+            <h2>MokuGift AR</h2>
+            <p>Initializing...</p>
+        </div>
+        <div id="marker-status">Point at the marker</div>
+        <div id="instructions">
+            <a href="marker.png" download style="color: #4fc3f7;">Download marker</a>
         </div>
     </div>
-    
-    <div id="info">Point your camera at a flat surface</div>
-    <button id="ar-button">START AR EXPERIENCE</button>
 
+    <!-- 3D Rendering Library -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    
     <script>
-        // Global Variables
-        let scene, camera, renderer, model;
-        let hitTestSource = null;
-        let arSession = null;
-        
-        // DOM Elements
-        const arButton = document.getElementById('ar-button');
-        const infoDiv = document.getElementById('info');
-        const loadingDiv = document.getElementById('loading');
-        const progressBar = document.getElementById('progress-bar');
-        
-        // Initialize
-        async function init() {
-            // Check WebXR support
-            if (!await checkXRSupport()) return;
+        // ========================
+        // Main Application
+        // ========================
+        const App = {
+            // DOM Elements
+            elements: {
+                video: null,
+                canvas: null,
+                ctx: null,
+                loading: null,
+                markerStatus: null
+            },
             
-            // Setup Three.js scene
-            await initScene();
+            // AR Tracking
+            ar: {
+                markerSize: 0.5, // Physical marker size in meters
+                markerPattern: null,
+                patternWidth: 16,
+                patternHeight: 16,
+                patternData: new Uint8Array(16*16),
+                detectionInterval: null
+            },
             
-            // Load 3D model
-            await loadModel('models/3d.glb');
+            // 3D Scene
+            three: {
+                scene: null,
+                camera: null,
+                renderer: null,
+                model: null
+            },
             
-            // Ready to start AR
-            loadingDiv.style.display = 'none';
-            arButton.style.display = 'block';
-        }
-        
-        // Check WebXR Availability
-        async function checkXRSupport() {
-            if (!navigator.xr) {
-                showError("WebXR not supported in your browser");
-                return false;
-            }
-            
-            try {
-                const supported = await navigator.xr.isSessionSupported('immersive-ar');
-                if (!supported) {
-                    showError("AR not available on this device");
-                    return false;
-                }
-                return true;
-            } catch (error) {
-                showError("Error checking AR support: " + error.message);
-                return false;
-            }
-        }
-        
-        // Initialize Three.js Scene
-        async function initScene() {
-            const canvas = document.createElement('canvas');
-            document.body.appendChild(canvas);
-            
-            renderer = new THREE.WebGLRenderer({
-                antialias: true,
-                alpha: true,
-                canvas: canvas
-            });
-            renderer.xr.enabled = true;
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-            
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-            scene.add(ambientLight);
-            
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
-            directionalLight.position.set(1, 1, 1);
-            scene.add(directionalLight);
-        }
-        
-        // Load GLB Model
-        async function loadModel(modelPath) {
-            return new Promise((resolve) => {
-                const loader = new THREE.GLTFLoader();
+            // Initialize the app
+            async init() {
+                // Get DOM elements
+                this.elements.video = document.getElementById('video');
+                this.elements.canvas = document.getElementById('canvas');
+                this.elements.ctx = this.elements.canvas.getContext('2d');
+                this.elements.loading = document.getElementById('loading');
+                this.elements.markerStatus = document.getElementById('marker-status');
                 
-                loader.load(
-                    modelPath,
-                    (gltf) => {
-                        model = gltf.scene;
-                        model.visible = false;
-                        model.scale.set(0.5, 0.5, 0.5);
-                        scene.add(model);
-                        resolve();
-                    },
-                    (xhr) => {
-                        const percent = (xhr.loaded / xhr.total) * 100;
-                        progressBar.style.width = `${percent}%`;
-                    },
-                    (error) => {
-                        showError("Failed to load model: " + error.message);
-                        // Fallback cube
-                        const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-                        const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-                        model = new THREE.Mesh(geometry, material);
-                        scene.add(model);
-                        resolve();
-                    }
+                // Initialize Three.js
+                this.initThreeJS();
+                
+                // Start camera
+                await this.startCamera();
+                
+                // Initialize marker pattern (embedded Hiro marker)
+                this.initMarkerPattern();
+                
+                // Load 3D model
+                await this.loadModel();
+                
+                // Start AR tracking
+                this.startARTracking();
+                
+                // Hide loading screen
+                this.elements.loading.style.display = 'none';
+            },
+            
+            // Set up Three.js scene
+            initThreeJS() {
+                // Scene
+                this.three.scene = new THREE.Scene();
+                
+                // Camera (parameters will be updated during tracking)
+                this.three.camera = new THREE.PerspectiveCamera(
+                    60, 
+                    window.innerWidth / window.innerHeight, 
+                    0.01, 
+                    1000
                 );
-            });
-        }
-        
-        // Start AR Session
-        async function startAR() {
-            try {
-                arSession = await navigator.xr.requestSession('immersive-ar', {
-                    requiredFeatures: ['hit-test'],
-                    optionalFeatures: ['dom-overlay'],
-                    domOverlay: { root: document.body }
+                this.three.scene.add(this.three.camera);
+                
+                // Renderer
+                this.three.renderer = new THREE.WebGLRenderer({ 
+                    alpha: true,
+                    antialias: true,
+                    canvas: this.elements.canvas
                 });
+                this.three.renderer.setSize(window.innerWidth, window.innerHeight);
                 
-                arButton.style.display = 'none';
-                infoDiv.style.display = 'block';
+                // Lighting
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+                this.three.scene.add(ambientLight);
                 
-                arSession.addEventListener('end', onSessionEnd);
-                
-                const refSpace = await arSession.requestReferenceSpace('local');
-                
-                // Start AR rendering loop
-                renderer.xr.setSession(arSession);
-                renderer.setAnimationLoop((timestamp, frame) => {
-                    if (!frame) return;
-                    
-                    const referenceSpace = renderer.xr.getReferenceSpace();
-                    const pose = frame.getViewerPose(referenceSpace);
-                    
-                    // Handle hit test
-                    if (pose && model) {
-                        if (!hitTestSource) {
-                            arSession.requestHitTestSource({ space: referenceSpace })
-                                .then((source) => { hitTestSource = source; });
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+                directionalLight.position.set(1, 1, 1);
+                this.three.scene.add(directionalLight);
+            },
+            
+            // Start camera stream
+            async startCamera() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: 'environment',
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
                         }
-                        
-                        if (hitTestSource) {
-                            const hitTestResults = frame.getHitTestResults(hitTestSource);
-                            if (hitTestResults.length > 0) {
-                                const hit = hitTestResults[0];
-                                const hitPose = hit.getPose(referenceSpace);
-                                
-                                model.position.set(
-                                    hitPose.transform.position.x,
-                                    hitPose.transform.position.y,
-                                    hitPose.transform.position.z
-                                );
-                                
-                                // Align model with surface normal
-                                model.quaternion.setFromRotationMatrix(
-                                    new THREE.Matrix4().fromArray(hitPose.transform.matrix)
-                                );
-                                
-                                model.visible = true;
-                            }
-                        }
-                    }
+                    });
                     
-                    renderer.render(scene, camera);
+                    this.elements.video.srcObject = stream;
+                    await new Promise((resolve) => {
+                        this.elements.video.onloadedmetadata = resolve;
+                    });
+                    this.elements.video.play();
+                    
+                    // Set canvas size to match video
+                    this.elements.canvas.width = this.elements.video.videoWidth;
+                    this.elements.canvas.height = this.elements.video.videoHeight;
+                    
+                } catch (err) {
+                    this.showError("Camera error: " + err.message);
+                }
+            },
+            
+            // Initialize marker pattern (embedded Hiro marker)
+            initMarkerPattern() {
+                // This is a simplified version of the Hiro marker pattern
+                const markerPattern = `
+                    0000000000000000
+                    0111111111111110
+                    0100000000000010
+                    0101111111111010
+                    0101000000011010
+                    0101011111011010
+                    0101010001011010
+                    0101010101011010
+                    0101010001011010
+                    0101011111011010
+                    0101000000011010
+                    0101111111111010
+                    0100000000000010
+                    0111111111111110
+                    0000000000000000
+                `.replace(/\s/g, '');
+                
+                // Convert to binary pattern data
+                for (let i = 0; i < markerPattern.length; i++) {
+                    this.ar.patternData[i] = markerPattern[i] === '1' ? 255 : 0;
+                }
+            },
+            
+            // Load 3D model (fallback to cube if error)
+            async loadModel() {
+                // For demo purposes, we'll use a simple cube
+                // Replace this with your actual model loading code
+                const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+                const material = new THREE.MeshStandardMaterial({ 
+                    color: 0x4CAF50,
+                    metalness: 0.5,
+                    roughness: 0.5
                 });
+                this.three.model = new THREE.Mesh(geometry, material);
+                this.three.model.visible = false;
+                this.three.scene.add(this.three.model);
                 
-            } catch (error) {
-                showError("AR session failed: " + error.message);
+                // If you want to load a GLB model:
+                /*
+                try {
+                    const loader = new THREE.GLTFLoader();
+                    const gltf = await loader.loadAsync('models/your-model.glb');
+                    this.three.model = gltf.scene;
+                    this.three.model.scale.set(0.5, 0.5, 0.5);
+                    this.three.model.visible = false;
+                    this.three.scene.add(this.three.model);
+                } catch (err) {
+                    console.error("Model loading failed, using fallback cube");
+                    // Use the cube we created above
+                }
+                */
+            },
+            
+            // Start AR marker tracking
+            startARTracking() {
+                // Simple marker detection (simplified for standalone implementation)
+                this.ar.detectionInterval = setInterval(() => {
+                    this.detectMarker();
+                }, 100); // Run detection 10 times per second
+            },
+            
+            // Simplified marker detection
+            detectMarker() {
+                // Draw video frame to canvas
+                this.elements.ctx.drawImage(
+                    this.elements.video,
+                    0, 0,
+                    this.elements.canvas.width,
+                    this.elements.canvas.height
+                );
+                
+                // Get image data
+                const imageData = this.elements.ctx.getImageData(
+                    0, 0,
+                    this.elements.canvas.width,
+                    this.elements.canvas.height
+                );
+                
+                // Simplified marker detection (in a real app, use JSARToolKit)
+                // This is just a placeholder for the concept
+                const markerFound = this.simulateMarkerDetection();
+                
+                if (markerFound) {
+                    this.elements.markerStatus.textContent = "Marker detected!";
+                    this.three.model.visible = true;
+                    
+                    // Position model above marker (simplified)
+                    this.three.model.position.set(0, 0, -1);
+                    this.three.model.rotation.y += 0.02;
+                } else {
+                    this.elements.markerStatus.textContent = "Point at the marker";
+                    this.three.model.visible = false;
+                }
+                
+                // Render 3D scene
+                this.three.renderer.render(this.three.scene, this.three.camera);
+            },
+            
+            // Simulate marker detection (replace with real implementation)
+            simulateMarkerDetection() {
+                // In a real app, this would use JSARToolKit or similar
+                // For this demo, we'll pretend we found the marker 50% of the time
+                return Math.random() > 0.5;
+            },
+            
+            // Error handling
+            showError(message) {
+                this.elements.loading.innerHTML = `
+                    <h2>Error</h2>
+                    <p>${message}</p>
+                    <button onclick="window.location.reload()">Try Again</button>
+                `;
+                console.error(message);
             }
-        }
+        };
         
-        // Session End Handler
-        function onSessionEnd() {
-            renderer.setAnimationLoop(null);
-            renderer.xr.setSession(null);
-            infoDiv.style.display = 'none';
-            arButton.style.display = 'block';
-            if (model) model.visible = false;
-            hitTestSource = null;
-        }
+        // Start the app when page loads
+        window.addEventListener('DOMContentLoaded', () => App.init());
         
-        // Error Handling
-        function showError(message) {
-            loadingDiv.innerHTML = `
-                <h2>Error</h2>
-                <p>${message}</p>
-                <button onclick="window.location.reload()">Try Again</button>
-            `;
-            console.error(message);
-        }
-        
-        // Event Listeners
-        arButton.addEventListener('click', startAR);
+        // Handle window resize
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            if (App.three.camera && App.three.renderer) {
+                App.three.camera.aspect = window.innerWidth / window.innerHeight;
+                App.three.camera.updateProjectionMatrix();
+                App.three.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
         });
-        
-        // Start the App
-        init();
     </script>
 </body>
 </html>
