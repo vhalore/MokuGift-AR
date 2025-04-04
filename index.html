@@ -5,6 +5,15 @@
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
   <!-- Use WebARonARCore version for better Huawei support -->
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-cores.js"></script>
+  <script>
+  AFRAME.registerComponent('force-camera', {
+    init: function() {
+      navigator.mediaDevices.getUserMedia = 
+        navigator.mediaDevices.getUserMedia || 
+        navigator.webkitGetUserMedia;
+    }
+  });
+</script>
   <style>
     #ar-container {
       position: fixed;
