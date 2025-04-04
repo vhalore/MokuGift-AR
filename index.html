@@ -1,74 +1,100 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>MokuGift AR (Huawei Compatible)</title>
+  <title>MokuGift AR (Huawei Fix)</title>
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
+  <!-- Use WebARonARCore version for better Huawei support -->
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-cores.js"></script>
   <style>
-    .arjs-loader {
-      height: 100%;
+    #ar-container {
+      position: fixed;
       width: 100%;
-      position: absolute;
-      top: 0;
-      left: 0;
-      background-color: rgba(0, 0, 0, 0.8);
-      z-index: 9999;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-      color: white;
+      height: 100%;
+    }
+    #error-message {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
     }
   </style>
 </head>
 <body>
-  <!-- Loading Screen -->
-  <div class="arjs-loader">
-    <div>Loading AR...</div>
-    <div id="huawei-hint" style="display: none; margin-top: 20px;">
-      <p>On Huawei, try:</p>
-      <ol>
-        <li>Download this <a href="assets/hiro.png" download>AR marker</a></li>
-        <li>Print it or display on another device</li>
-        <li>Point your camera at it</li>
-      </ol>
-    </div>
+  <!-- AR Container -->
+  <div id="ar-container">
+    <a-scene 
+      vr-mode-ui="enabled: false"
+      renderer="logarithmicDepthBuffer: true;"
+      embedded 
+      arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best;"
+    >
+      <!-- Hiro Marker with enhanced parameters -->
+      <a-marker 
+        type="pattern" 
+        preset="hiro"
+        url="assets/hiro.patt"
+        emitevents="true"
+        cursor="rayOrigin: mouse"
+        raycaster="objects: .clickable"
+        registerevents
+      >
+        <a-entity 
+          gltf-model="models/3d.glb"
+          scale="0.1 0.1 0.1"
+          class="clickable"
+          animation="property: rotation; to: 0 360 0; loop: true; dur: 5000"
+        ></a-entity>
+      </a-marker>
+      <a-entity camera></a-entity>
+    </a-scene>
   </div>
 
-  <!-- AR Scene -->
-  <a-scene 
-    vr-mode-ui="enabled: false"
-    renderer="logarithmicDepthBuffer: true;"
-    embedded arjs="trackingMethod: best; sourceType: webcam;"
-  >
-    <a-nft
-      type="nft"
-      url="assets/hiro"
-      smooth="true"
-      smoothCount="10"
-      smoothTolerance="0.01"
-      smoothThreshold="5"
-    >
-      <a-entity gltf-model="models/3d.glb" scale="0.1 0.1 0.1"></a-entity>
-    </a-nft>
-    <a-entity camera></a-entity>
-  </a-scene>
+  <!-- Error Message -->
+  <div id="error-message">
+    <h3>Marker Not Detected</h3>
+    <p>Try these steps:</p>
+    <ol>
+      <li>Print the <a href="assets/hiro.png" download>Hiro Marker</a> at 100% scale</li>
+      <li>Ensure good lighting (avoid glare)</li>
+      <li>Hold phone 30-50cm from marker</li>
+      <li>Move slowly if using Huawei P40/Mate series</li>
+    </ol>
+    <button onclick="location.reload()">Retry</button>
+  </div>
 
   <script>
-    // Huawei-specific detection
-    const isHuawei = /huawei/i.test(navigator.userAgent);
-    const loader = document.querySelector('.arjs-loader');
+    // Huawei-specific adjustments
+    const scene = document.querySelector('a-scene');
+    let timeout;
     
-    if (isHuawei) {
-      document.getElementById('huawei-hint').style.display = 'block';
-    }
-
-    // Hide loader when AR loads
-    document.querySelector('a-scene').addEventListener('loaded', () => {
-      setTimeout(() => {
-        loader.style.display = 'none';
-      }, 1500);
+    // Show error if no detection after 10 seconds
+    scene.addEventListener('loaded', () => {
+      timeout = setTimeout(showError, 10000);
     });
+    
+    // Cancel timeout if marker found
+    scene.addEventListener('markerFound', () => {
+      clearTimeout(timeout);
+      document.getElementById('error-message').style.display = 'none';
+    });
+    
+    function showError() {
+      document.getElementById('error-message').style.display = 'block';
+    }
+    
+    // Huawei camera warmup workaround
+    if (/huawei/i.test(navigator.userAgent)) {
+      setTimeout(() => {
+        const camera = document.querySelector('[camera]');
+        camera.setAttribute('camera', 'active', false);
+        camera.setAttribute('camera', 'active', true);
+      }, 1000);
+    }
   </script>
 </body>
 </html>
