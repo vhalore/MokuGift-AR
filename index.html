@@ -1,97 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>MokuGift Universal AR</title>
-  <!-- Load AR.js with all polyfills -->
+  <title>AR Test</title>
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
-  
-  <!-- Load model-viewer as fallback -->
-  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
-  
-  <style>
-    /* Universal AR Container */
-    #ar-container {
-      width: 100%;
-      height: 100vh;
-      position: relative;
-    }
-    
-    /* Fallback Message */
-    .fallback {
-      display: none;
-      text-align: center;
-      padding: 20px;
-    }
-  </style>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <style> body { margin: 0; overflow: hidden; } </style>
 </head>
 <body>
-  <!-- Dynamic AR Container -->
-  <div id="ar-container">
-    <!-- This will be replaced by either AR or 3D viewer -->
-  </div>
-
-  <!-- Fallback Instructions -->
-  <div class="fallback" id="fallback">
-    <h2>AR Experience Unavailable</h2>
-    <p>Try these options:</p>
-    <ol>
-      <li>Use <strong>Chrome (Android)</strong> or <strong>Safari (iPhone)</strong></li>
-      <li><a href="assets/marker.jpg" download>Download marker image</a></li>
-      <li>View <a href="#3d-fallback">3D version</a></li>
-    </ol>
-  </div>
-
+  <a-scene embedded arjs='sourceType: webcam;'>
+    <a-marker preset="hiro">
+      <a-box position="0 0.5 0" material="color: red"></a-box>
+    </a-marker>
+    <a-entity camera></a-entity>
+  </a-scene>
+  
   <script>
-    // Detect device capabilities
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const isHuawei = /huawei/i.test(navigator.userAgent);
-    const supportsWebXR = 'xr' in navigator;
-    
-    // Main AR loader
-    function initAR() {
-      const container = document.getElementById('ar-container');
-      
-      // 1. Try WebXR (best for Android/iOS)
-      if (supportsWebXR || isIOS) {
-        container.innerHTML = `
-          <a-scene embedded arjs="trackingMethod: best; sourceType: webcam;">
-            <a-nft type="nft" url="assets/marker" smooth="true">
-              <a-entity gltf-model="models/product.glb" scale="0.1 0.1 0.1"></a-entity>
-            </a-nft>
-            <a-entity camera></a-entity>
-          </a-scene>
-        `;
-      } 
-      // 2. Try Quick Look (iOS fallback)
-      else if (isIOS) {
-        container.innerHTML = `
-          <model-viewer
-            src="models/3d.glb"
-            ios-src="models/product.usdz"
-            ar
-            ar-modes="quick-look"
-            camera-controls
-            style="width:100%;height:100%">
-          </model-viewer>
-        `;
-      }
-      // 3. Show 3D fallback
-      else {
-        container.innerHTML = `
-          <model-viewer
-            src="models/product.glb"
-            camera-controls
-            auto-rotate
-            style="width:100%;height:100%">
-          </model-viewer>
-        `;
-        document.getElementById('fallback').style.display = 'block';
-      }
-    }
-
-    // Initialize when page loads
-    window.addEventListener('DOMContentLoaded', initAR);
+    document.querySelector('a-scene').addEventListener('loaded', () => {
+      console.log("AR scene loaded!");
+    });
   </script>
 </body>
 </html>
