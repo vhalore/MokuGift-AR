@@ -22,16 +22,17 @@
 <body>
     <h1>MokuGift AR Demo</h1>
     <model-viewer
-        src="3d.glb"
-        ar
-        ar-modes="webxr scene-viewer quick-look"
-        camera-controls
-        environment-image="neutral"
-        alt="Test AR model">
-        <button id="ar-button" slot="ar-button">
-            👀 View in AR (Mobile Only)
-        </button>
-    </model-viewer>
+  src="https://modelviewer.dev/shared-assets/models/gltf/NeilArmstrong/NeilArmstrong.glb"
+  ar
+  ar-modes="webxr scene-viewer quick-look"
+  camera-controls
+  environment-image="neutral"
+  ios-src="assets/models/your-model.usdz" <!-- Optional for iOS -->
+  alt="AR Model">
+  <button slot="ar-button" style="background: #6B240C; color: white; border: none; padding: 10px 20px;">
+    👀 View in AR
+  </button>
+</model-viewer>
     <p><strong>Note:</strong> Open this page on your phone to test AR!</p>
 </body>
 </html>
