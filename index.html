@@ -1,62 +1,110 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>MokuGift Realistic AR</title>
+    <title>MokuGift AR/3D Viewer</title>
     <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        #container {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            margin: 20px 0;
+        }
         model-viewer {
             width: 100%;
-            height: 80vh;
-            --poster-color: transparent;
-            --environment-intensity: 1.5;
-            --shadow-intensity: 0.8;
-        }
-        .ar-prompt {
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 12px;
-            border-radius: 24px;
+            height: 100%;
             margin: 0 auto;
-            width: fit-content;
+            --poster-color: transparent;
+        }
+        #ar-button {
+            background: #6B240C;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 16px;
+            margin: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        #ar-button:hover {
+            background: #8B341C;
+            transform: translateY(-2px);
+        }
+        #fallback-message {
+            display: none;
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .instructions {
+            color: #666;
+            margin: 15px 0;
         }
     </style>
 </head>
 <body>
-    <model-viewer
-        src="models/prod.glb"
-        ios-src="models/your-optimized.usdz"
-        ar
-        camera-controls
-        auto-rotate
-        environment-image="https://modelviewer.dev/shared-assets/environments/spruit_sunrise_1k_HDR.hdr"
-        exposure="0.8"
-        shadow-intensity="1"
-        shadow-softness="0.5"
-        alt="3D Model">
-        
-        <div class="ar-prompt" slot="ar-prompt">
-            👆 Tap to place in your space
-        </div>
-        
-        <button slot="ar-button">
-            View in AR
-        </button>
-    </model-viewer>
+    <h1>MokuGift Product Viewer</h1>
+    <p class="instructions">View our product in AR or interact with the 3D model</p>
+    
+    <div id="container">
+        <model-viewer
+            id="model-viewer"
+            src="models/prod.glb"
+            ios-src="models/mokugift-product.usdz"
+            ar
+            ar-modes="webxr scene-viewer quick-look"
+            camera-controls
+            auto-rotate
+            environment-image="neutral"
+            alt="MokuGift product 3D model">
+            <button id="ar-button" slot="ar-button">
+                👀 View in AR
+            </button>
+        </model-viewer>
+    </div>
+    
+    <div id="fallback-message">
+        <p>AR not available on your device - enjoy the 3D viewer instead!</p>
+        <p>Click and drag to rotate • Scroll to zoom</p>
+    </div>
+    
+    <p class="instructions">On mobile: Tap the AR button above<br>On desktop: Use mouse to rotate the 3D model</p>
 
     <script>
-        document.querySelector('model-viewer').addEventListener('load', () => {
-            // Adjust lighting dynamically
-            const modelViewer = document.querySelector('model-viewer');
+        document.addEventListener('DOMContentLoaded', () => {
+            const modelViewer = document.getElementById('model-viewer');
+            const fallbackMessage = document.getElementById('fallback-message');
+            
+            // Check AR availability
             modelViewer.addEventListener('ar-status', (event) => {
-                if (event.detail.status === 'session-started') {
-                    // Enhance AR lighting
-                    modelViewer.environmentImage = 'https://modelviewer.dev/shared-assets/environments/whipple_creek_regional_park_04_1k_HDR.hdr';
-                    modelViewer.exposure = 1.2;
-                } else {
-                    // Optimize for 3D viewer
-                    modelViewer.environmentImage = 'https://modelviewer.dev/shared-assets/environments/spruit_sunrise_1k_HDR.hdr';
-                    modelViewer.exposure = 0.8;
+                if (event.detail.status === 'failed') {
+                    fallbackMessage.style.display = 'block';
+                    
+                    // Enhance 3D viewer experience
+                    modelViewer.autoRotate = true;
+                    modelViewer.autoRotateDelay = 1000;
+                    modelViewer.cameraControls = true;
+                    
+                    // Customize for desktop
+                    if (!navigator.userAgent.match(/Mobile|Android|iPhone|iPad|iPod/i)) {
+                        modelViewer.style.setProperty('--progress-bar-color', 'transparent');
+                    }
                 }
+            });
+            
+            // Add loading state
+            modelViewer.addEventListener('load', () => {
+                modelViewer.style.opacity = '1';
             });
         });
     </script>
