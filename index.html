@@ -1,38 +1,112 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>MokuGift AR Test</title>
+    <title>MokuGift AR/3D Viewer</title>
     <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
     <style>
-        model-viewer {
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        #container {
+            position: relative;
             width: 100%;
             height: 500px;
+            margin: 20px 0;
+        }
+        model-viewer {
+            width: 100%;
+            height: 100%;
             margin: 0 auto;
+            --poster-color: transparent;
         }
         #ar-button {
             background: #6B240C;
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-family: sans-serif;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 16px;
+            margin: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        #ar-button:hover {
+            background: #8B341C;
+            transform: translateY(-2px);
+        }
+        #fallback-message {
+            display: none;
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .instructions {
+            color: #666;
+            margin: 15px 0;
         }
     </style>
 </head>
 <body>
-    <h1>MokuGift AR Demo</h1>
-    <model-viewer
-  src="https://modelviewer.dev/shared-assets/models/gltf/NeilArmstrong/NeilArmstrong.glb"
-  ar
-  ar-modes="webxr scene-viewer quick-look"
-  camera-controls
-  environment-image="neutral"
-  ios-src="assets/models/your-model.usdz" <!-- Optional for iOS -->
-  alt="AR Model">
-  <button slot="ar-button" style="background: #6B240C; color: white; border: none; padding: 10px 20px;">
-    👀 View in AR
-  </button>
-</model-viewer>
-    <p><strong>Note:</strong> Open this page on your phone to test AR!</p>
+    <h1>MokuGift Product Viewer</h1>
+    <p class="instructions">View our product in AR or interact with the 3D model</p>
+    
+    <div id="container">
+        <model-viewer
+            id="model-viewer"
+            src="models/mokugift-product.glb"
+            ios-src="models/mokugift-product.usdz"
+            ar
+            ar-modes="webxr scene-viewer quick-look"
+            camera-controls
+            auto-rotate
+            environment-image="neutral"
+            alt="MokuGift product 3D model">
+            <button id="ar-button" slot="ar-button">
+                👀 View in AR
+            </button>
+        </model-viewer>
+    </div>
+    
+    <div id="fallback-message">
+        <p>AR not available on your device - enjoy the 3D viewer instead!</p>
+        <p>Click and drag to rotate • Scroll to zoom</p>
+    </div>
+    
+    <p class="instructions">On mobile: Tap the AR button above<br>On desktop: Use mouse to rotate the 3D model</p>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const modelViewer = document.getElementById('model-viewer');
+            const fallbackMessage = document.getElementById('fallback-message');
+            
+            // Check AR availability
+            modelViewer.addEventListener('ar-status', (event) => {
+                if (event.detail.status === 'failed') {
+                    fallbackMessage.style.display = 'block';
+                    
+                    // Enhance 3D viewer experience
+                    modelViewer.autoRotate = true;
+                    modelViewer.autoRotateDelay = 1000;
+                    modelViewer.cameraControls = true;
+                    
+                    // Customize for desktop
+                    if (!navigator.userAgent.match(/Mobile|Android|iPhone|iPad|iPod/i)) {
+                        modelViewer.style.setProperty('--progress-bar-color', 'transparent');
+                    }
+                }
+            });
+            
+            // Add loading state
+            modelViewer.addEventListener('load', () => {
+                modelViewer.style.opacity = '1';
+            });
+        });
+    </script>
 </body>
 </html>
